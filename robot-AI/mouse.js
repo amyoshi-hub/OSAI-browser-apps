@@ -27,24 +27,46 @@ plane.name = "ground";
 //planeMaterial.map = texture;
 scene.add(plane);
 
-for (let i = 0; i < 20; i++) {
+const obstacles = [];
+
+for (let i = 0; i < 200; i++) {
     const obstacleGeometry = new THREE.BoxGeometry(2, 2, 2);
     const obstacleMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
     const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
     obstacle.position.set(
-        Math.random() * 50 - 25,
+        Math.random() * 75 - 25,
         1,
-        Math.random() * 50 - 25
+        Math.random() * 80 - 25
     );
     scene.add(obstacle);
+    obstacles.push(obstacle);
 }
+//obstacles.position.x += Math.sin(time) * 0.1;
 
 //Map
 const map = [
   [0, 0, 0, 0, 1],
   [0, 0, 0, 0, 1],
   [0, 0, 0, 0, 1],
+  [0, 0, 0, 0, 1],
+  [0, 0, 0, 0, 1],
+  [0, 0, 0, 0, 1],
+  [0, 0, 0, 0, 1],
+  [0, 0, 0, 0, 1],
+  [0, 0, 0, 0, 1],
 ];
+
+for (let z = 0; z < map.length; z++) {
+    for (let x = 0; x < map[z].length; x++) {
+        if (map[z][x] === 1) {
+            const wallGeometry = new THREE.BoxGeometry(2, 2, 2);
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000 });
+            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.position.set(x * 5 - 25, 1, z * 5 - 25);
+            scene.add(wall);
+        }
+    }
+}
 
 generateCubes(map, scene, texture);
 

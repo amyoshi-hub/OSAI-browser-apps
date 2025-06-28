@@ -1,0 +1,166 @@
+class BipedalRobot {
+  constructor(scene, physicsWorld) {
+    this.scene = scene;
+    this.physicsWorld = physicsWorld;
+
+    this.parts = {};
+    this.joints = [];
+
+    this.initRobot();
+
+    // 歩行用タイマー
+    this.time = 0;
+  }
+
+  initRobot() {
+    // 各パーツのサイズ設定
+    const sizes = {
+      torso: {x:1, y:2, z:0.5},
+      upperLeg: {x:0.4, y:1.2, z:0.4},
+      lowerLeg: {x:0.35, y:1.1, z:0.35},
+      foot: {x:0.5, y:0.2, z:0.8},
+      head: {x:0.8, y:0.8, z:0.8}
+    };
+
+    // トルソー作成
+    this.parts.torso = this.createRigidBody(sizes.torso, {x:0, y:3, z:0}, 5, 0xff0000);
+
+    // 頭
+    this.parts.head = this.createRigidBody(sizes.head, {x:0, y:4.4, z:0}, 1, 0xffcc00);
+
+    // 右足（上腿・下腿・足）
+    this.parts.rightUpperLeg = this.createRigidBody(sizes.upperLeg, {x:-0.4, y:2, z:0}, 2, 0x0000ff);
+    this.parts.rightLowerLeg = this.createRigidBody(sizes.lowerLeg, {x:-0.4, y:1, z:0}, 1.5, 0x0000ff);
+    this.parts.rightFoot = this.createRigidBody(sizes.foot, {x:-0.4, y:0.3, z:0.2}, 0.8, 0x0000ff);
+
+    // 左足（上腿・下腿・足）
+    this.parts.leftUpperLeg = this.createRigidBody(sizes.upperLeg, {x:0.4, y:2, z:0}, 2, 0x00ff00);
+    this.parts.leftLowerLeg = this.createRigidBody(sizes.lowerLeg, {x:0.4, y:1, z:0}, 1.5, 0x00ff00);
+    this.parts.leftFoot = this.createRigidBody(sizes.foot, {x:0.4, y:0.3, z:0.2}, 0.8, 0x00ff00);
+
+    // 関節で接続
+    // 右膝
+    this.joints.push(this.createHinge(this.parts.rightUpperLeg, this.parts.rightLowerLeg, {x:-0.4, y:1.4, z:0}, {x:-0.4, y:1.5, z:0}, 'knee'));
+    // 右足首
+    this.joints.push(this.createHinge(this.parts.rightLowerLeg, this.parts.rightFoot, {x:-0.4, y:0.7, z:0}, {x:-0.4, y:0.5, z:0.2}, 'ankle'));
+
+    // 左膝
+    this.joints.push(this.createHinge(this.parts.leftUpperLeg, this.parts.leftLowerLeg, {x:0.4, y:1.4, z:0}, {x:0.4, y:1.5, z:0}, 'knee'));
+    // 左足首
+    this.joints.push(this.createHinge(this.parts.leftLowerLeg, this.parts.leftFoot, {x:0.4, y:0.7, z:0}, {x:0.4, y:0.5, z:0.2}, 'ankle'));
+
+    // 腰（トルソーと両足の接続）
+    this.joints.push(this.createHinge(null, this.parts.torso, {x:0, y:2.8, z:0}, {x:0, y:3, z:0}, 'hip', true));
+
+    // 右股関節（トルソーと右上腿）
+    this.joints.push(this.createHinge(this.parts.torso, this.parts.rightUpperLeg, {x:-0.4, y:2.8, z:0}, {x:-0.4, y:2, z:0}, 'hip'));
+
+    // 左股関節（トルソーと左上腿）
+    this.joints.push(this.createHinge(this.parts.torso, this.parts.leftUpperLeg, {x:0.4, y:2.8, z:0}, {x:0.4, y:2, z:0}, 'hip'));
+  }
+
+  createRigidBody(size, position, mass, color) {
+    // Three.jsメッシュ
+    const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+    const material = new THREE.MeshPhongMaterial({color: color});
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(position.x, position.y, position.z);
+    this.scene.add(mesh);
+
+    // 物理剛体作成
+    let transform = new Ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin(new Ammo.btVector3(position.x, position.y, position.z));
+    let motionState = new Ammo.btDefaultMotionState(transform);
+
+    let colShape = new Ammo.btBoxShape(new Ammo.btVector3(size.x/2, size.y/2, size.z/2));
+    let localInertia = new Ammo.btVector3(0,0,0);
+    colShape.calculateLocalInertia(mass, localInertia);
+
+    let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
+    let body = new Ammo.btRigidBody(rbInfo);
+
+    this.physicsWorld.addRigidBody(body);
+
+    mesh.userData.physicsBody = body;
+    return mesh;
+  }
+
+  createHinge(bodyA, bodyB, pivotA, pivotB, name, isFixed = false) {
+    // 物理剛体取得（bodyAはnullの場合は固定）
+    const rbA = bodyA ? bodyA.userData.physicsBody : null;
+    const rbB = bodyB.userData.physicsBody;
+
+    let hinge;
+
+    if (isFixed) {
+      // 体と固定接続（腰用）
+      hinge = new Ammo.btFixedConstraint(rbB, new Ammo.btTransform());
+    } else {
+      // ヒンジジョイント
+      let transformA = new Ammo.btTransform();
+      transformA.setIdentity();
+      transformA.setOrigin(new Ammo.btVector3(pivotA.x, pivotA.y, pivotA.z));
+
+      let transformB = new Ammo.btTransform();
+      transformB.setIdentity();
+      transformB.setOrigin(new Ammo.btVector3(pivotB.x, pivotB.y, pivotB.z));
+
+      hinge = new Ammo.btHingeConstraint(rbA, rbB, transformA, transformB, new Ammo.btVector3(1,0,0), new Ammo.btVector3(1,0,0), true);
+      hinge.enableMotor(true);
+      hinge.setMaxMotorImpulse(1);
+    }
+
+    this.physicsWorld.addConstraint(hinge, true);
+    hinge.setUserConstraintName(name);
+
+    return hinge;
+  }
+
+  update(deltaTime) {
+    this.time += deltaTime;
+
+    // 簡単な歩行サイクルを実装
+    const walkSpeed = 2;
+    const angle = Math.sin(this.time * walkSpeed) * 0.7;
+
+    // 右膝と左膝を交互に曲げる
+    this.joints.forEach(joint => {
+      const name = joint.getUserConstraintName();
+
+      if(name === 'knee'){
+        const motorTarget = (joint === this.joints[0]) ? -angle : angle;
+        joint.setMotorTarget(motorTarget, 1);
+      }
+      if(name === 'ankle'){
+        // 足首は少し上下動
+        const motorTarget = (joint === this.joints[1]) ? angle * 0.5 : -angle * 0.5;
+        joint.setMotorTarget(motorTarget, 1);
+      }
+      if(name === 'hip'){
+        // 股関節は揺らし
+        const motorTarget = angle * 0.3;
+        joint.setMotorTarget(motorTarget, 1);
+      }
+    });
+
+    // メッシュの位置・回転を物理剛体に同期
+    Object.values(this.parts).forEach(mesh => {
+      const body = mesh.userData.physicsBody;
+      let motionState = body.getMotionState();
+      if (motionState) {
+        let tmpTrans = new Ammo.btTransform();
+        motionState.getWorldTransform(tmpTrans);
+        let origin = tmpTrans.getOrigin();
+        let rotation = tmpTrans.getRotation();
+        mesh.position.set(origin.x(), origin.y(), origin.z());
+        mesh.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+      }
+    });
+  }
+}
+
+</script>
+</body>
+</html>
+
