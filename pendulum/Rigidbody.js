@@ -24,7 +24,21 @@ export class Rigidbody {
     this.externalForce.set(0, 0, 0);
 
     if (this.isGrounded && this.velocity.y < 0) {
+      this.position.y = 2;
       this.velocity.set(0, 0, 0);
+    }
+  }
+  applyFriction(coefficient, dt) {
+  // 水平方向の速度だけに摩擦力をかける（y方向は重力で制御）
+    const frictionForceX = -Math.sign(this.velocity.x) * coefficient * this.mass * this.g;
+    const frictionAccelerationX = frictionForceX / this.mass;
+
+    // 摩擦加速度を速度に加算（dtを掛けて速度の変化量）
+    this.velocity.x += frictionAccelerationX * dt;
+
+  // 摩擦力によって速度の符号が逆転しないように clamp（0以下なら0にする）
+    if (Math.sign(this.velocity.x) !== Math.sign(this.velocity.x + frictionAccelerationX * dt)) {
+    this.velocity.x = 0;
     }
   }
 
@@ -36,6 +50,7 @@ export class Rigidbody {
     this.angle += this.angularVelocity * dt;
     this.angularVelocity *= 0.999;
     //console.log("angle:", this.angle, "ω:", this.angularVelocity, "α:", this.angularAcceleration);
+    this.applyFriction(0.8, dt);
 
   }
   setGrounded(flag) {

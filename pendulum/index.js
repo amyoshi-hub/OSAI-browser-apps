@@ -29,7 +29,8 @@ function init() {
 ground.position.y = 0;
 scene.add(ground);
 
-  body = new Body(scene, ground);
+  const initPos = new THREE.Vector3(0, 5, 0);
+  body = new Body(scene, ground, initPos);
 
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);

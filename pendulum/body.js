@@ -2,11 +2,11 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.m
 import { Rigidbody } from './Rigidbody.js';
 
 export class Body {
-  constructor(scene, ground) {
+  constructor(scene, ground, initPosition = new THREE.Vector3(0, 2, 0)) {
     this.ground = ground;
 
     this.rigid = new Rigidbody(THREE, 1, 2);
-    this.rigid.position.set(0, 2, 0);
+    this.rigid.position.copy(initPosition);
 
     // ボディ
     const bodyGeometry = new THREE.BoxGeometry(0.5, 2, 0.5);
@@ -43,12 +43,15 @@ export class Body {
   animate(dt, time) {
     // レイキャスト
     const raycaster = new THREE.Raycaster();
-    const threshold = 0.05;
+    const threshold = 1;
     const direction = new THREE.Vector3(0, -1, 0);
 
     const leftOrigin = this.left_leg.getWorldPosition(new THREE.Vector3());
     const rightOrigin = this.right_leg.getWorldPosition(new THREE.Vector3());
 
+    //片足づつraycasを設定
+    const leftFootBottom = this.left_leg.localToWorld(new THREE.Vector3(0, -0.5, 0));
+    const rightFootBottom = this.right_leg.localToWorld(new THREE.Vector3(0, -0.5, 0));
     raycaster.set(leftOrigin, direction);
     const leftHit = raycaster.intersectObject(this.ground);
 
