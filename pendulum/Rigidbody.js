@@ -47,18 +47,26 @@ export class Rigidbody {
     }
   }
   //回転力
-  applyRotation(dt) {
+  applyRotation(dt, leftGround, rightGround) {
+    if (!leftGround && rightGround) {
+    this.angularVelocity += 0.01;  // 右足を軸に倒れる方向に回転を足す例
+  } else if (!rightGround && leftGround) {
+    this.angularVelocity -= 0.01;  // 左足を軸に倒れる方向に回転を足す例
+  } else {
+    // 両足接地などは自然に戻る方向に力をかける
     const torque = -this.mass * this.g * (this.length / 2) * Math.sin(this.angle);
     const I = (1 / 3) * this.mass * Math.pow(this.length, 2);
     this.angularAcceleration = torque / I;
     this.angularVelocity += this.angularAcceleration * dt;
     this.angle += this.angularVelocity * dt;
     this.angularVelocity *= 0.999;
-    //console.log("angle:", this.angle, "ω:", this.angularVelocity, "α:", this.angularAcceleration);
-
   }
-  setGrounded(flag) {
-  this.isGrounded = flag;
+    this.angle += this.angularVelocity *dt;
+ } 
+  setGrounded(leftGrounded, rightGrounded) {
+   this.rightGrounded = rightGrounded;
+   this.leftGrounded = leftGrounded;
+   this.isGrounded = leftGrounded || rightGrounded;
   }
 
 

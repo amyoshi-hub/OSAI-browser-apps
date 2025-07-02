@@ -3,6 +3,10 @@ import { Rigidbody } from './Rigidbody.js';
 
 export class Body {
   constructor(scene, ground, initPosition = new THREE.Vector3(0, 2, 0)) {
+    //回転基盤　体の下にあり足のraycasによって回転
+    this.pivot = new THREE.Object3D();
+    scene.add(this.pivot);
+
     this.ground = ground;
 
     this.rigid = new Rigidbody(THREE, 1, 2);
@@ -13,7 +17,8 @@ export class Body {
     const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xFEDCBD });
     this.body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     this.body.position.copy(this.rigid.position);
-    scene.add(this.body);
+    this.pivot.add(this.body);
+    //scene.add(this.body);
 
     // 頭
     const headGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
@@ -61,7 +66,7 @@ export class Body {
     const leftGrounded = leftHit.length > 0 && leftHit[0].distance < threshold;
     const rightGrounded = rightHit.length > 0 && rightHit[0].distance < threshold;
 
-    this.rigid.setGrounded(leftGrounded || rightGrounded);
+    this.rigid.setGrounded(leftGrounded, rightGrounded);
 
     // 物理挙動
     this.rigid.applyGravity(dt);
