@@ -24,11 +24,15 @@ export class Arrow3D {
     const L = new this.THREE.Vector3().subVectors(top, bottom);
     const R = new this.THREE.Vector3().addVectors(top, bottom).multiplyScalar(0.5);
 
+    const offset = new this.THREE.Vector3(0, -0.3, 0); // 下方向に 0.5 ユニット移動
+    this.CG.position.copy(R.add(offset));
+
     this.arrowBody.scale.set(1, L.length() - this.headLength, 1);
     this.arrowBody.position.set(0, (L.length() - this.headLength) / 2, 0);
     this.arrowHead.position.set(0, L.length() - this.headLength / 2, 0);
-    this.CG.position.copy(R);
+    this.CG.position.copy(R.add(offset));
 
+    
     const V1 = new this.THREE.Vector3(0, 1, 0);
     const V2 = L.clone().normalize();
     const V3 = new this.THREE.Vector3().crossVectors(V1, V2);

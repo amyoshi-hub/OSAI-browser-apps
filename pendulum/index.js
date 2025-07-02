@@ -1,42 +1,36 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js';
-import { Arrow3D } from './Arrow3D.js';
+import { Body } from './body.js';
 
-let body, scene, camera, renderer, arrow;
+let scene, camera, renderer;
+let body;
 
 function init() {
-  // シーン作成
   scene = new THREE.Scene();
 
-  // カメラ設定
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.set(0, 3, 3);
   camera.lookAt(0, 0, 0);
 
-  // レンダラー設定
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // 環境光
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
 
-  // グリッド
   const grid = new THREE.GridHelper(10, 10);
   scene.add(grid);
 
-  // ボディ作成と追加（ここで `scene.add` を実行）
-  const bodyGeometry = new THREE.BoxGeometry(1, 2, 1);
-  const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  	body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  scene.add(body);
+  const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(10, 10),
+  new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide })
+  );
+  ground.rotation.x = Math.PI / 2;
+ground.position.y = 0;
+scene.add(ground);
 
-  // 矢印作成
-  arrow = new Arrow3D(THREE, 0.1, 0.2, 0.05, 0x00ff00);
-  arrow.setArrowBottomToTop(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 0));
-  body.add(arrow.CG);
+  body = new Body(scene, ground);
 
-  // リサイズイベント
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -46,19 +40,60 @@ function init() {
   animate();
 }
 
-function animate() {
+let cameraRotationX = 0;
+let cameraRotationY = 0;
+let isPointerLocked = false;
 
+// Pointer Lock APIの設定
+document.body.addEventListener("click", () => {
+  renderer.domElement.requestPointerLock();
+});
+
+document.addEventListener("pointerlockchange", () => {
+  isPointerLocked = document.pointerLockElement === renderer.domElement;
+  if (!isPointerLocked) {
+    //console.log("マウスロックが解除されました");
+  }
+});
+
+// マウスイベントリスナー
+document.addEventListener("mousemove", (e) => {
+  if (!isPointerLocked) return;
+
+  const deltaX = e.movementX || 0;
+  const deltaY = e.movementY || 0;
+
+  cameraRotationY -= deltaX * 0.002;
+  cameraRotationX -= deltaY * 0.002;
+
+  cameraRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotationX));
+
+  camera.rotation.y = cameraRotationY;
+  camera.rotation.x = cameraRotationX;
+});
+
+let time = 5.1;
+let direction = 1;
+let prev = performance.now();
+let prevTime = performance.now();
+
+function animate() {
   requestAnimationFrame(animate);
-  const time = Date.now() * 0.001;
-  body.position.y = Math.sin(time) * 2;
-  arrow.setArrowBottomToTop(
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(Math.sin(time), 0.5, Math.cos(time))
-  );
+
+  const now = performance.now();
+  const dt = (now - prevTime) / 1000; // 秒単位
+  prevTime = now;
+
+  time += direction * 0.01;
+
+  if (time >= 6 || time <= 4) {
+    direction *= -1;
+  }
+
+  body.animate(dt, time);
 
   renderer.render(scene, camera);
 }
 
-// 初期化関数の呼び出し
 init();
 
