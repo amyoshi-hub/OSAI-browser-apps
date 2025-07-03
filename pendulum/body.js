@@ -19,6 +19,8 @@ export class Body {
     this.body.position.copy(this.rigid.position);
     this.pivot.add(this.body);
     //scene.add(this.body);
+    //body pivot
+    const bodyPos = this.rigid.position;
 
     // 頭
     const headGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
@@ -32,7 +34,7 @@ export class Body {
       new THREE.BoxGeometry(0.2, 1, 0.2),
       new THREE.MeshBasicMaterial({ color: 0x888888 })
     );
-    this.right_leg.position.set(0.2, -1.5, 0);
+    this.right_leg.position.set(-0.2, -1.5, 0);
     this.body.add(this.right_leg);
 
     // 足（左）
@@ -40,17 +42,35 @@ export class Body {
       new THREE.BoxGeometry(0.2, 1, 0.2),
       new THREE.MeshBasicMaterial({ color: 0x888888 })
     );
+    ;
     this.left_leg.position.set(-0.2, -1.5, 0);
-//これだけ
+    this.body.add(this.left_leg);
+
+    //this.body.add(this.left_leg);
     this.body.add(this.left_leg);
   }
 
   animate(dt, time) {
+    //leg用のbody基準
+    const bodyPos = this.rigid.position;
+    this.right_leg.position.set(
+	bodyPos.x - 0.20,
+	bodyPos.y - 1.5,
+	bodyPos.z
+    );
+
+    this.left_leg.position.set(
+	bodyPos.x + 0.20,
+	bodyPos.y - 1.5,
+	bodyPos.z
+    );
+    
     // レイキャスト
     const raycaster = new THREE.Raycaster();
     const threshold = 1;
     const direction = new THREE.Vector3(0, -1, 0);
 
+    //足の基準
     const leftOrigin = this.left_leg.getWorldPosition(new THREE.Vector3());
     const rightOrigin = this.right_leg.getWorldPosition(new THREE.Vector3());
 
@@ -63,6 +83,7 @@ export class Body {
     raycaster.set(rightOrigin, direction);
     const rightHit = raycaster.intersectObject(this.ground);
 
+    //地面設置判定
     const leftGrounded = leftHit.length > 0 && leftHit[0].distance < threshold;
     const rightGrounded = rightHit.length > 0 && rightHit[0].distance < threshold;
 
@@ -70,7 +91,15 @@ export class Body {
 
     // 物理挙動
     this.rigid.applyGravity(dt);
-    this.rigid.applyRotation(dt);
+    //this.rigid.applyRotation(dt);
+    this.rigid.applyRotation(dt, leftGrounded, rightGrounded);
+    //足のスイング（仮）
+    if (!leftGrounded) {
+  	this.left_leg.rotation.x = Math.sin(time * 2) * 0.2;
+    }
+    if (!rightGrounded) {
+  	this.right_leg.rotation.x = Math.sin(time * 2 + Math.PI) * 0.2;
+    }
 
     // 見た目更新
     this.body.position.copy(this.rigid.position);

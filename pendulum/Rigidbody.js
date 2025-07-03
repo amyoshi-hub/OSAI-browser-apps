@@ -9,8 +9,12 @@ export class Rigidbody {
     this.acceleration = new THREE.Vector3();
     this.externalForce = new THREE.Vector3();
 
+
+    //重心切り替えのインターバル
+    this.groundSwitchCooldown = 0;  // 重心切り替えのクールダウンタイム（秒）
+    this.groundSwitchInterval = 0.3;　　
     this.length = length;
-    this.angle = 50;
+    this.angle = 3;
     this.angularVelocity = 0;
     this.angularAcceleration = 0;
   }
@@ -49,9 +53,9 @@ export class Rigidbody {
   //回転力
   applyRotation(dt, leftGround, rightGround) {
     if (!leftGround && rightGround) {
-    this.angularVelocity += 0.01;  // 右足を軸に倒れる方向に回転を足す例
+    this.angularVelocity += 10;  // 右足を軸に倒れる方向に回転を足す例
   } else if (!rightGround && leftGround) {
-    this.angularVelocity -= 0.01;  // 左足を軸に倒れる方向に回転を足す例
+    this.angularVelocity -= 10;  // 左足を軸に倒れる方向に回転を足す例
   } else {
     // 両足接地などは自然に戻る方向に力をかける
     const torque = -this.mass * this.g * (this.length / 2) * Math.sin(this.angle);
@@ -63,11 +67,27 @@ export class Rigidbody {
   }
     this.angle += this.angularVelocity *dt;
  } 
-  setGrounded(leftGrounded, rightGrounded) {
-   this.rightGrounded = rightGrounded;
-   this.leftGrounded = leftGrounded;
-   this.isGrounded = leftGrounded || rightGrounded;
+  
+    setGrounded(leftGrounded, rightGrounded, dt) {
+  if (!leftGrounded && !rightGrounded) {
+    // 空中ならインターバル関係なく即判定切り替え
+    this.leftGrounded = false;
+    this.rightGrounded = false;
+    this.isGrounded = false;
+    this.groundSwitchCooldown = 0; // クールダウンリセットもお好みで
+  } else {
+    // 地面にいるときだけインターバル判定
+    this.groundSwitchCooldown -= dt;
+    //if (this.groundSwitchCooldown <= 0) {
+      if (this.leftGrounded !== leftGrounded || this.rightGrounded !== rightGrounded) {
+        this.leftGrounded = leftGrounded;
+        this.rightGrounded = rightGrounded;
+        this.isGrounded = leftGrounded || rightGrounded;
+        this.groundSwitchCooldown = this.groundSwitchInterval;
+      }
+    //}
   }
+}
 
 
   applyForce(force) {
