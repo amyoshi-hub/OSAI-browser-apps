@@ -1,0 +1,6 @@
+[
+  { "time": 1000, "x": 100, "color": "red" },
+  { "time": 2500, "x": 200, "color": "blue" },
+  { "time": 4000, "x": 150, "color": "red" }
+]
+

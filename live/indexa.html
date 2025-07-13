@@ -1,0 +1,139 @@
+import React, { useState, useEffect, useRef } from "react";
+
+const lyricsText = `ドンドン ドコドン
+太鼓の達人
+リズムゲーム
+楽しいね`;
+
+type Note = {
+  id: number;
+  x: number;
+  y: number;
+  hit: boolean;
+};
+
+const TaikoLike = () => {
+  const [lyrics, setLyrics] = useState("");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const noteId = useRef(0);
+
+  // 歌詞読み込み（固定文字列 or ファイル読み込みも可）
+  useEffect(() => {
+    setLyrics(lyricsText);
+  }, []);
+
+  // ノードを落とすアニメーション
+  useEffect(() => {
+    const speed = 2; // 1フレームでの落下速度(px)
+
+    let animationFrameId: number;
+
+    const animate = () => {
+      setNotes((prevNotes) => {
+        // yを増やして下に落とす
+        const updated = prevNotes
+          .map((note) => ({ ...note, y: note.y + speed }))
+          .filter((note) => note.y < 400); // 画面外のノードは消す
+
+        return updated;
+      });
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  // 一定時間毎にノード追加
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newNote: Note = {
+        id: noteId.current++,
+        x: Math.random() * 300 + 20, // 横位置ランダム（右ペイン幅内）
+        y: 0,
+        hit: false,
+      };
+      setNotes((prev) => [...prev, newNote]);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ノードクリック（叩く）判定
+  const handleNoteClick = (id: number) => {
+    setNotes((prev) =>
+      prev.map((note) => (note.id === id ? { ...note, hit: true } : note))
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", height: "450px", padding: "20px" }}>
+      {/* 左：歌詞表示 */}
+      <div
+        style={{
+          flex: 1,
+          marginRight: "10px",
+          padding: "10px",
+          border: "1px solid #ccc",
+          whiteSpace: "pre-wrap",
+          fontSize: "18px",
+          lineHeight: "1.6",
+          overflowY: "auto",
+          backgroundColor: "#fafafa",
+        }}
+      >
+        {lyrics}
+      </div>
+
+      {/* 右：ノード落下エリア */}
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1,
+          position: "relative",
+          border: "1px solid #ccc",
+          backgroundColor: "#222",
+          overflow: "hidden",
+          height: "100%",
+        }}
+      >
+        {/* タイミングライン */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "50px",
+            left: 0,
+            right: 0,
+            height: "4px",
+            backgroundColor: "yellow",
+          }}
+        ></div>
+
+        {/* ノード描画 */}
+        {notes.map((note) => (
+          <div
+            key={note.id}
+            onClick={() => handleNoteClick(note.id)}
+            style={{
+              position: "absolute",
+              top: note.y,
+              left: note.x,
+              width: "30px",
+              height: "30px",
+              borderRadius: "50%",
+              backgroundColor: note.hit ? "green" : "red",
+              cursor: "pointer",
+              userSelect: "none",
+              transition: note.hit ? "background-color 0.3s" : undefined,
+            }}
+          ></div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default TaikoLike;
+

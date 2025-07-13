@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>譜面読み取り Taiko</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+<script type="text/babel">
+const TaikoFromFile = () => {
+  const [notes, setNotes] = React.useState([]);
+  const [noteData, setNoteData] = React.useState([]);
+  const [lyricsLines, setLyricsLines] = React.useState([]);
+  const [currentTime, setCurrentTime] = React.useState(0);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const lyricsRef = React.useRef(null);
+  const lineRefs = React.useRef([]);
+  const noteId = React.useRef(0);
+  const startTime = React.useRef(null);
+
+  // 歌詞ファイル読み込み
+  React.useEffect(() => {
+    fetch("lyric/on_line_malaysia.txt")
+      .then(res => res.text())
+      .then(text => {
+        const lines = text
+          .split("\n")
+          .map((line, index) => {
+            const [timeStr, text] = line.split(",", 2);
+            const time = parseFloat(timeStr?.trim());
+            if (isNaN(time) || !text) return null;
+            return {
+              time,
+              text: text.trim(),
+              index,
+            };
+          })
+          .filter(Boolean);
+        setLyricsLines(lines);
+      })
+      .catch(() => {
+        setLyricsLines([{ time: 0, text: "読み込み失敗", index: 0 }]);
+      });
+  }, []);
+
+  // ノート読み込み
+  React.useEffect(() => {
+    fetch("notes.json")
+      .then(res => res.json())
+      .then(data => setNoteData(data))
+      .catch(() => console.error("ノート読み込み失敗"));
+  }, []);
+
+  // 時間を進める
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(prev => +(prev + 0.1).toFixed(1));
+    }, 100);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 歌詞スクロール
+  React.useEffect(() => {
+    const nextLine = lyricsLines.find(
+      (line, i) =>
+        line.time <= currentTime &&
+        (lyricsLines[i + 1]?.time > currentTime || !lyricsLines[i + 1])
+    );
+    if (nextLine && nextLine.index !== currentIndex) {
+      setCurrentIndex(nextLine.index);
+      const el = lineRefs.current[nextLine.index];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [currentTime, lyricsLines]);
+
+  // 落下アニメーション
+  React.useEffect(() => {
+    const speed = 2;
+    let animId;
+
+    const animate = () => {
+      setNotes(prev =>
+        prev
+          .map(note => ({ ...note, y: note.y + speed }))
+          .filter(note => note.y < 400)
+      );
+      animId = requestAnimationFrame(animate);
+    };
+
+    animate();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  // ノート生成
+  React.useEffect(() => {
+    startTime.current = performance.now();
+    const interval = setInterval(() => {
+      const now = performance.now() - startTime.current;
+      const readyNotes = noteData.filter(note => !note.added && note.time <= now);
+
+      if (readyNotes.length > 0) {
+        const newNotes = readyNotes.map(n => ({
+          id: noteId.current++,
+          x: n.x,
+          y: 0,
+          hit: false,
+          color: n.color,
+        }));
+        setNotes(prev => [...prev, ...newNotes]);
+
+        setNoteData(prev =>
+          prev.map(n => (n.time <= now ? { ...n, added: true } : n))
+        );
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [noteData]);
+
+  const handleNoteClick = (id) => {
+    setNotes(prev =>
+      prev.map(note =>
+        note.id === id ? { ...note, hit: true } : note
+      )
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", height: "500px", padding: "20px", gap: "20px" }}>
+      <div
+        ref={lyricsRef}
+        style={{
+          flex: 1,
+          height: "100%",
+          overflowY: "auto",
+          padding: "10px",
+          fontSize: "20px",
+          lineHeight: "1.8",
+          backgroundColor: "#f0f0f0",
+          border: "1px solid #ccc",
+        }}
+      >
+        {lyricsLines.map((line, i) => (
+          <div
+            key={i}
+            ref={el => (lineRefs.current[i] = el)}
+            style={{
+              padding: "6px",
+              backgroundColor: i === currentIndex ? "#ffeaa7" : "transparent",
+              transition: "background-color 0.3s",
+            }}
+          >
+            <strong>{line.time.toFixed(1)}s:</strong> {line.text}
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        flex: 1,
+        position: "relative",
+        border: "1px solid #ccc",
+        backgroundColor: "#222",
+        overflow: "hidden",
+        height: "100%",
+      }}>
+        <div style={{
+          position: "absolute",
+          bottom: "50px",
+          left: 0,
+          right: 0,
+          height: "4px",
+          backgroundColor: "yellow",
+        }}></div>
+
+        {notes.map((note) => (
+          <div
+            key={note.id}
+            onClick={() => handleNoteClick(note.id)}
+            style={{
+              position: "absolute",
+              top: note.y,
+              left: note.x,
+              width: "30px",
+              height: "30px",
+              borderRadius: "50%",
+              backgroundColor: note.hit ? "green" : note.color,
+              cursor: "pointer",
+              userSelect: "none",
+              transition: "background-color 0.2s",
+            }}
+          ></div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<TaikoFromFile />);
+</script>
+
+
